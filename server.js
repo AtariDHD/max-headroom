@@ -1,10 +1,13 @@
 import "dotenv/config";
 import express from "express";
+import fs from "fs";
 import OpenAI from "openai";
 import path from "path";
 import { fileURLToPath } from "url";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
+const ASSETS_DIR = path.join(__dirname, "assets");
+const RESOURCES_DIR = path.join(__dirname, "resources");
 const app = express();
 const PORT = process.env.PORT || 3000;
 
@@ -40,7 +43,8 @@ const DEMO_REPLIES = [
 ];
 
 app.use(express.json({ limit: "32kb" }));
-app.use("/assets", express.static(path.join(__dirname, "assets")));
+app.use("/assets", express.static(ASSETS_DIR));
+app.use("/resources", express.static(RESOURCES_DIR));
 app.use("/vendor", express.static(path.join(__dirname, "node_modules")));
 app.use(express.static(path.join(__dirname, "public")));
 
@@ -140,6 +144,16 @@ app.post("/api/speech", async (req, res) => {
 
 app.listen(PORT, () => {
   console.log(`Max Headroom live at http://localhost:${PORT}`);
+  const modelPaths = [
+    path.join(ASSETS_DIR, "MaxHeadRoom.vrm"),
+    path.join(RESOURCES_DIR, "MaxHeadRoomVtuberVRM.vrm"),
+  ];
+  const found = modelPaths.find((p) => fs.existsSync(p));
+  if (found) {
+    console.log(`  → VRM model: ${path.relative(__dirname, found)}`);
+  } else {
+    console.warn("  → VRM model missing — add MaxHeadRoom.vrm to assets/ (see assets/README.md)");
+  }
   if (!openai) {
     console.log("  → Demo chat mode (set OPENAI_API_KEY for full AI)");
   }

@@ -11,6 +11,8 @@ const sendBtn = document.getElementById("send-btn");
 const statusPill = document.getElementById("status-pill");
 const stage = document.querySelector(".stage");
 const flash = document.getElementById("glitch-flash");
+const movementSelect = document.getElementById("movement-select");
+const movementPlayBtn = document.getElementById("movement-play-btn");
 
 const scene = new MaxScene(canvas);
 const effects = new MaxEffects({ stage, flash, scene });
@@ -37,9 +39,42 @@ function setBusy(value) {
   sendBtn.disabled = value;
 }
 
+function populateMovementSelect() {
+  if (!movementSelect) return;
+
+  const groups = new Map();
+  for (const movement of scene.getMovements()) {
+    if (!groups.has(movement.group)) {
+      groups.set(movement.group, []);
+    }
+    groups.get(movement.group).push(movement);
+  }
+
+  movementSelect.replaceChildren();
+  for (const [group, items] of groups) {
+    const optgroup = document.createElement("optgroup");
+    optgroup.label = group;
+    for (const item of items) {
+      const option = document.createElement("option");
+      option.value = item.id;
+      option.textContent = item.label;
+      optgroup.appendChild(option);
+    }
+    movementSelect.appendChild(optgroup);
+  }
+}
+
+function playSelectedMovement() {
+  if (!movementSelect?.value) return;
+  scene.playMovement(movementSelect.value, {
+    onGlitch: (strength) => effects.pulseGlitch(strength),
+  });
+}
+
 async function init() {
   await voice.configure();
   await scene.ready.catch(() => {});
+  populateMovementSelect();
 
   let statusText = "LIVE";
   try {
@@ -88,6 +123,8 @@ document.addEventListener(
   },
   { once: true }
 );
+
+movementPlayBtn?.addEventListener("click", () => playSelectedMovement());
 
 form.addEventListener("submit", async (e) => {
   e.preventDefault();

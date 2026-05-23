@@ -3,7 +3,7 @@ import { EffectComposer } from "three/addons/postprocessing/EffectComposer.js";
 import { RenderPass } from "three/addons/postprocessing/RenderPass.js";
 import { UnrealBloomPass } from "three/addons/postprocessing/UnrealBloomPass.js";
 import { ShaderPass } from "three/addons/postprocessing/ShaderPass.js";
-import { MaxHead } from "./max-head.js";
+import { MaxHead, MOVEMENTS } from "./max-head.js";
 import { createCubeCorner } from "./cube-corner.js";
 
 const ScanlineShader = {
@@ -233,6 +233,29 @@ export class MaxScene {
     this.head.setMouthOpen(mouth);
   }
 
+  /** @returns {typeof MOVEMENTS} */
+  getMovements() {
+    return MOVEMENTS;
+  }
+
+  playMovement(id, { onGlitch } = {}) {
+    const result = this.head.playMovement(id);
+    if (result.handled) return true;
+
+    const movement = result.movement;
+    if (!movement) return false;
+
+    if (movement.type === "external") {
+      onGlitch?.(1);
+      return true;
+    }
+    if (movement.type === "external-face") {
+      this.head.applyGlitch(1);
+      return true;
+    }
+    return false;
+  }
+
   triggerGlitch(strength = 1) {
     this._glitchDecay = Math.max(this._glitchDecay, strength);
     this.head.applyGlitch(strength);
@@ -240,7 +263,7 @@ export class MaxScene {
   }
 
   tick(time) {
-    this.head.update(time, this.speaking);
+    this.head.update(time, this.speaking || this.head.isTestSpeaking());
 
     if (this._glitchDecay > 0) {
       this._glitchDecay = Math.max(0, this._glitchDecay - 0.02);

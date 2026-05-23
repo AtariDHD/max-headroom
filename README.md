@@ -8,11 +8,12 @@ Built by [AtariDHD](https://github.com/AtariDHD).
 
 ## Features
 
-- **3D VRM avatar** — purchased Max Headroom model with viseme lip sync (`aa`, `ih`, `ou`, `ee`, `oh`)
+- **3D VRM avatar** — rigged Max Headroom model with viseme lip sync (`aa`, `ih`, `ou`, `ee`, `oh`)
 - **Wireframe cube set** — green / yellow / pink grid corner background (classic TV look)
 - **Chat** — OpenAI-powered Max personality with stutters and `[GLITCH]` markers
 - **Voice** — ElevenLabs instant voice clone when configured; browser TTS fallback
 - **Mannerisms** — head tilt, stutter jerks, scanlines, bloom, chromatic glitch bursts
+- **Movement test panel** — hover the top-right of the 3D view to pick a viseme, expression, head motion, or glitch and hit **PLAY**
 - **Demo mode** — works without API keys (canned replies + browser voice)
 
 ## Quick start
@@ -68,7 +69,9 @@ Status pill meanings:
 
 ## 3D model setup
 
-The purchased Max Headroom VRM is **not included** in this repo (licensing). Place your files in `assets/`:
+The Max Headroom VRM is **not included** in this repo (licensing). Purchase the model from TurboSquid, then place your files in `assets/`:
+
+**[Max Headroom VTuber Ready Full Rigged 3D Model on TurboSquid](https://www.turbosquid.com/3d-models/max-headroom-vtuber-ready-full-rigged-3d-1959807)**
 
 ```
 assets/
@@ -76,7 +79,22 @@ assets/
   textures/          ← optional if embedded in VRM
 ```
 
+The download includes VRM, FBX, and Blend formats. The app loads the **VRM** file. A copy in `resources/` is also served if you keep files there during development.
+
 See [assets/README.md](assets/README.md) for details.
+
+## Movement test controls
+
+Hover the **top-right corner** of the 3D viewport to reveal a hidden debug panel. Choose a movement from the dropdown and click **PLAY** to preview:
+
+| Group | Examples |
+|-------|----------|
+| **Mouth** | Individual visemes, blended open, frequency-band emphasis |
+| **Face** | Blink, happy, angry, sad, relaxed, look directions, neutral reset |
+| **Head** | Stutter nod, speaking sway, idle drift |
+| **Effects** | Full screen glitch, face-only glitch |
+
+Useful for tuning lip sync, expressions, and mannerisms without sending chat messages.
 
 ## How it works
 
@@ -95,7 +113,8 @@ flowchart LR
 ```
 assets/              3D model files (local only, not in git)
 public/
-  js/max-head.js     VRM loader + viseme lip sync
+  brand.png          Header logo image
+  js/max-head.js     VRM loader, visemes, movement test API
   js/max-scene.js    Three.js scene, lighting, post-processing
   js/cube-corner.js  Wireframe grid corner background
   js/max-voice.js    Speech playback + mouth analysis

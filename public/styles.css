@@ -72,6 +72,7 @@ body {
     transparent 40%,
     rgba(0, 0, 0, 0.65) 100%
   );
+  display: none;
 }
 
 .app {
@@ -223,6 +224,99 @@ body {
   100% {
     opacity: 0;
   }
+}
+
+.movement-debug {
+  position: absolute;
+  top: 0;
+  right: 0;
+  z-index: 10;
+  width: 14rem;
+  height: 2.75rem;
+  padding: 0.5rem;
+  display: flex;
+  justify-content: flex-end;
+  align-items: flex-start;
+}
+
+.movement-debug__panel {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.35rem 0.45rem;
+  border: 1px solid transparent;
+  border-radius: 3px;
+  background: transparent;
+  opacity: 0;
+  pointer-events: none;
+  transition:
+    opacity 0.2s ease,
+    background 0.2s ease,
+    border-color 0.2s ease;
+}
+
+.movement-debug:hover .movement-debug__panel,
+.movement-debug:focus-within .movement-debug__panel {
+  opacity: 1;
+  pointer-events: auto;
+  background: rgba(8, 12, 24, 0.92);
+  border-color: var(--border);
+  box-shadow: 0 0 16px rgba(125, 249, 255, 0.12);
+}
+
+.movement-debug__hint {
+  font-family: var(--font-mono);
+  font-size: 0.58rem;
+  letter-spacing: 0.14em;
+  color: rgba(125, 249, 255, 0.35);
+  transition: color 0.2s ease;
+}
+
+.movement-debug:hover .movement-debug__hint,
+.movement-debug:focus-within .movement-debug__hint {
+  color: var(--cyan);
+}
+
+#movement-select {
+  min-width: 11rem;
+  max-width: 14rem;
+  padding: 0.35rem 0.45rem;
+  font-family: var(--font-mono);
+  font-size: 0.68rem;
+  color: var(--text);
+  background: rgba(0, 0, 0, 0.55);
+  border: 1px solid var(--border);
+  border-radius: 3px;
+  outline: none;
+  cursor: pointer;
+}
+
+#movement-select:focus {
+  border-color: var(--cyan);
+}
+
+#movement-play-btn {
+  padding: 0.35rem 0.55rem;
+  font-family: var(--font-mono);
+  font-size: 0.62rem;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  color: #000;
+  background: var(--magenta);
+  border: none;
+  border-radius: 3px;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background 0.15s ease;
+}
+
+#movement-play-btn:hover:not(:disabled) {
+  background: #ff5de3;
+}
+
+#movement-play-btn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
 }
 
 .chat-panel {

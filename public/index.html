@@ -22,8 +22,9 @@
     <div class="app">
       <header class="header">
         <div class="brand">
-          <span class="brand-mark">MAX</span>
-          <span class="brand-sub">HEADROOM</span>
+          <img src="brand.png" height="40" alt="Max Headroom">
+          <!-- <span class="brand-mark">MAX</span>
+          <span class="brand-sub">HEADROOM</span> -->
         </div>
         <p class="brand-tag">20 MINUTES INTO THE FUTURE</p>
         <p id="status-pill" class="status-pill" role="status">Connecting…</p>
@@ -32,6 +33,14 @@
       <section class="stage" aria-label="Max Headroom 3D view">
         <canvas id="max-canvas"></canvas>
         <div id="glitch-flash" class="glitch-flash" hidden></div>
+        <div class="movement-debug" aria-label="Movement test controls">
+          <div class="movement-debug__panel">
+            <span class="movement-debug__hint">TEST</span>
+            <label class="sr-only" for="movement-select">Movement</label>
+            <select id="movement-select"></select>
+            <button type="button" id="movement-play-btn">PLAY</button>
+          </div>
+        </div>
       </section>
 
       <section class="chat-panel" aria-label="Chat with Max">

@@ -2,6 +2,12 @@
 
 This folder is **gitignored** except for this README. Add your purchased Max Headroom files here after cloning the repo.
 
+## Where to buy the model
+
+**[Max Headroom VTuber Ready Full Rigged 3D Model — TurboSquid](https://www.turbosquid.com/3d-models/max-headroom-vtuber-ready-full-rigged-3d-1959807)**
+
+The download includes VRM, FBX, and Blend formats. Copy the VRM into this folder.
+
 ## Required
 
 - **`MaxHeadRoom.vrm`** — VRM export used by the app (default path in `public/js/max-head.js`)
