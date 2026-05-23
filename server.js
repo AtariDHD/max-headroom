@@ -1,7 +1,7 @@
 import "dotenv/config";
 import express from "express";
 import fs from "fs";
-import OpenAI from "openai";
+import OpenAI, { toFile } from "openai";
 import path from "path";
 import { fileURLToPath } from "url";
 
@@ -42,20 +42,59 @@ const DEMO_REPLIES = [
   "Twenty minutes into the future and you're still typing? [GLITCH] Impressive. Ask me something.",
 ];
 
-app.use(express.json({ limit: "32kb" }));
-app.use("/assets", express.static(ASSETS_DIR));
-app.use("/resources", express.static(RESOURCES_DIR));
-app.use("/vendor", express.static(path.join(__dirname, "node_modules")));
-app.use(express.static(path.join(__dirname, "public")));
-
 app.get("/api/status", (_req, res) => {
   res.json({
     chat: Boolean(openai),
+    transcribe: Boolean(openai),
     elevenlabs: Boolean(
       process.env.ELEVENLABS_API_KEY && process.env.ELEVENLABS_VOICE_ID
     ),
   });
 });
+
+app.post("/api/transcribe", express.json({ limit: "12mb" }), async (req, res) => {
+  if (!openai) {
+    return res.status(503).json({
+      error: "Voice input requires OPENAI_API_KEY for transcription.",
+    });
+  }
+
+  const audio = String(req.body?.audio ?? "");
+  const mime = String(req.body?.mime ?? "audio/webm");
+  if (!audio) {
+    return res.status(400).json({ error: "Audio required" });
+  }
+
+  try {
+    const buffer = Buffer.from(audio, "base64");
+    const ext = mime.includes("mp4") ? "mp4" : "webm";
+    const file = await toFile(buffer, `speech.${ext}`, { type: mime });
+    const result = await openai.audio.transcriptions.create({
+      file,
+      model: "whisper-1",
+      language: "en",
+    });
+
+    const text = result.text?.trim();
+    if (!text) {
+      return res.status(422).json({ error: "No speech detected." });
+    }
+
+    res.json({ text });
+  } catch (err) {
+    console.error("Transcribe error:", err.message);
+    res.status(500).json({
+      error: "Could not transcribe speech. Check your OpenAI API key and credits.",
+    });
+  }
+});
+
+app.use(express.json({ limit: "32kb" }));
+
+app.use("/assets", express.static(ASSETS_DIR));
+app.use("/resources", express.static(RESOURCES_DIR));
+app.use("/vendor", express.static(path.join(__dirname, "node_modules")));
+app.use(express.static(path.join(__dirname, "public")));
 
 app.post("/api/chat", async (req, res) => {
   const message = String(req.body?.message ?? "").trim();

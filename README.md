@@ -11,7 +11,8 @@ Built by [AtariDHD](https://github.com/AtariDHD).
 - **3D VRM avatar** — rigged Max Headroom model with viseme lip sync (`aa`, `ih`, `ou`, `ee`, `oh`)
 - **Wireframe cube set** — green / yellow / pink grid corner background (classic TV look)
 - **Chat** — OpenAI-powered Max personality with stutters and `[GLITCH]` markers
-- **Voice** — ElevenLabs instant voice clone when configured; browser TTS fallback
+- **Voice output** — ElevenLabs instant voice clone when configured; browser TTS fallback
+- **Voice input** — mic button on the chat bar; records your speech and transcribes via OpenAI Whisper (falls back to browser speech recognition without an API key)
 - **Mannerisms** — head tilt, stutter jerks, scanlines, bloom, chromatic glitch bursts
 - **Movement test panel** — hover the top-right of the 3D view to pick a viseme, expression, head motion, or glitch and hit **PLAY**
 - **Demo mode** — works without API keys (canned replies + browser voice)
@@ -43,7 +44,7 @@ Copy `.env.example` to `.env`:
 
 | Variable | Required | Purpose |
 |----------|----------|---------|
-| `OPENAI_API_KEY` | For AI chat | Powers Max's personality via GPT-4o-mini |
+| `OPENAI_API_KEY` | For AI chat + voice input | Powers Max's personality (GPT-4o-mini) and speech-to-text (Whisper) |
 | `ELEVENLABS_API_KEY` | For HD voice | ElevenLabs TTS API key |
 | `ELEVENLABS_VOICE_ID` | For HD voice | Voice ID from your ElevenLabs library or clone |
 | `PORT` | No | Server port (default `3000`) |
@@ -53,6 +54,16 @@ Copy `.env.example` to `.env`:
 1. Create an API key at [platform.openai.com](https://platform.openai.com/api-keys)
 2. Add billing / credits — free ChatGPT accounts do **not** include unlimited API quota
 3. If you see *"Max hit a network glitch"*, check the server console; `429 insufficient_quota` means you need API credits
+
+### Voice input (mic button)
+
+With `OPENAI_API_KEY` set, the mic records locally and sends audio to **`/api/transcribe`** (Whisper). This avoids Chrome's built-in speech recognition, which sends audio to Google and often fails with a `network` error.
+
+1. Click the **mic** in the chat input (allow microphone permission when prompted)
+2. Speak — recording stops after a brief pause, or click the mic again to stop early
+3. Your words are transcribed and sent to Max automatically
+
+Without an OpenAI key, the app falls back to the browser Web Speech API (Chrome/Edge only; requires connectivity to Google's speech service).
 
 ### ElevenLabs (recommended voice)
 
@@ -100,7 +111,9 @@ Useful for tuning lip sync, expressions, and mannerisms without sending chat mes
 
 ```mermaid
 flowchart LR
-  User[You type] --> API["/api/chat"]
+  User[You type or speak] --> STT["/api/transcribe → Whisper"]
+  STT --> API["/api/chat"]
+  User --> API
   API --> LLM[OpenAI + Max system prompt]
   LLM --> Text[Reply with stutters + GLITCH tags]
   Text --> UI[Chat + 3D effects]
@@ -118,10 +131,11 @@ public/
   js/max-scene.js    Three.js scene, lighting, post-processing
   js/cube-corner.js  Wireframe grid corner background
   js/max-voice.js    Speech playback + mouth analysis
+  js/max-speech-input.js  Mic button + Whisper / browser STT
   js/max-effects.js  Glitch coordination
   js/main.js         App wiring
 scripts/             Dev utilities (VRM inspection)
-server.js            Express API (chat + TTS)
+server.js            Express API (chat, transcribe, TTS)
 ```
 
 ## Scripts

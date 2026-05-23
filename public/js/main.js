@@ -1,6 +1,7 @@
 import { MaxScene } from "./max-scene.js";
 import { MaxVoice } from "./max-voice.js";
 import { MaxEffects } from "./max-effects.js";
+import { MaxSpeechInput } from "./max-speech-input.js";
 import { formatMaxMessage, appendMessage } from "./max-chat.js";
 
 const canvas = document.getElementById("max-canvas");
@@ -8,6 +9,7 @@ const messagesEl = document.getElementById("messages");
 const form = document.getElementById("chat-form");
 const input = document.getElementById("user-input");
 const sendBtn = document.getElementById("send-btn");
+const voiceBtn = document.getElementById("voice-btn");
 const statusPill = document.getElementById("status-pill");
 const stage = document.querySelector(".stage");
 const flash = document.getElementById("glitch-flash");
@@ -33,10 +35,63 @@ const voice = new MaxVoice({
 const history = [];
 let busy = false;
 
+const speechInput = new MaxSpeechInput({
+  input,
+  button: voiceBtn,
+  onResult: (text) => sendMessage(text),
+  onError: (message) => appendMessage(messagesEl, "system", message),
+});
+
 function setBusy(value) {
   busy = value;
   input.disabled = value;
   sendBtn.disabled = value;
+  speechInput.setEnabled(!value);
+}
+
+async function sendMessage(text) {
+  const trimmed = String(text ?? "").trim();
+  if (!trimmed || busy) return;
+
+  speechInput.stop();
+  input.value = "";
+  appendMessage(messagesEl, "user", trimmed);
+  history.push({ role: "user", content: trimmed });
+
+  const thinking = appendMessage(messagesEl, "max", "…", "thinking");
+  setBusy(true);
+
+  try {
+    const res = await fetch("/api/chat", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ message: trimmed, history }),
+    });
+    const data = await res.json();
+    thinking.remove();
+
+    if (!res.ok) {
+      appendMessage(messagesEl, "system", data.error || "Transmission failed.");
+      setBusy(false);
+      return;
+    }
+
+    const reply = data.text;
+    history.push({ role: "assistant", content: reply });
+    appendMessage(messagesEl, "max", formatMaxMessage(reply));
+
+    const estDuration = Math.max(2500, reply.length * 55);
+    effects.scheduleForSpeech(reply, estDuration);
+    try {
+      await voice.speak(reply);
+    } finally {
+      setBusy(false);
+    }
+  } catch {
+    thinking.remove();
+    appendMessage(messagesEl, "system", "Signal lost. Try again.");
+    setBusy(false);
+  }
 }
 
 function populateMovementSelect() {
@@ -80,6 +135,7 @@ async function init() {
   try {
     const res = await fetch("/api/status");
     const data = await res.json();
+    speechInput.configure({ transcribe: data.transcribe });
     if (!data.chat) {
       statusText = "DEMO CHAT — add OPENAI_API_KEY";
       statusPill.classList.add("demo");
@@ -97,7 +153,7 @@ async function init() {
   appendMessage(
     messagesEl,
     "system",
-    "Max is on the air. Type a message — c-c-c-come on, don't be shy."
+    "Max is on the air. Type or tap the mic — c-c-c-come on, don't be shy."
   );
 
   // Greet
@@ -126,49 +182,11 @@ document.addEventListener(
 
 movementPlayBtn?.addEventListener("click", () => playSelectedMovement());
 
+voiceBtn?.addEventListener("click", () => speechInput.toggle());
+
 form.addEventListener("submit", async (e) => {
   e.preventDefault();
-  const text = input.value.trim();
-  if (!text || busy) return;
-
-  input.value = "";
-  appendMessage(messagesEl, "user", text);
-  history.push({ role: "user", content: text });
-
-  const thinking = appendMessage(messagesEl, "max", "…", "thinking");
-  setBusy(true);
-
-  try {
-    const res = await fetch("/api/chat", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ message: text, history }),
-    });
-    const data = await res.json();
-    thinking.remove();
-
-    if (!res.ok) {
-      appendMessage(messagesEl, "system", data.error || "Transmission failed.");
-      setBusy(false);
-      return;
-    }
-
-    const reply = data.text;
-    history.push({ role: "assistant", content: reply });
-    appendMessage(messagesEl, "max", formatMaxMessage(reply));
-
-    const estDuration = Math.max(2500, reply.length * 55);
-    effects.scheduleForSpeech(reply, estDuration);
-    try {
-      await voice.speak(reply);
-    } finally {
-      setBusy(false);
-    }
-  } catch {
-    thinking.remove();
-    appendMessage(messagesEl, "system", "Signal lost. Try again.");
-    setBusy(false);
-  }
+  await sendMessage(input.value);
 });
 
 function animate(time) {
