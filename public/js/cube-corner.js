@@ -1,13 +1,30 @@
 import * as THREE from "three";
+import { LineSegments2 } from "three/addons/lines/LineSegments2.js";
+import { LineSegmentsGeometry } from "three/addons/lines/LineSegmentsGeometry.js";
+import { LineMaterial } from "three/addons/lines/LineMaterial.js";
 
-function createLineFace(points, color, opacity = 0.85) {
-  const geometry = new THREE.BufferGeometry().setFromPoints(points);
-  const material = new THREE.LineBasicMaterial({
+const DEFAULT_LINE_WIDTH = 2;
+
+function createLineFace(points, color, { opacity = 0.85, lineWidth = DEFAULT_LINE_WIDTH } = {}) {
+  const positions = [];
+  for (const point of points) {
+    positions.push(point.x, point.y, point.z);
+  }
+
+  const geometry = new LineSegmentsGeometry();
+  geometry.setPositions(positions);
+
+  const material = new LineMaterial({
     color,
+    linewidth: lineWidth,
     transparent: true,
     opacity,
+    depthWrite: false,
   });
-  return new THREE.LineSegments(geometry, material);
+
+  const lines = new LineSegments2(geometry, material);
+  lines.computeLineDistances();
+  return lines;
 }
 
 /** Floor (XZ) — vertical lines parallel to Z. */
@@ -43,7 +60,7 @@ function wallHorizontalLinesXY(z, x0, x1, y0, y1, divisions) {
   return points;
 }
 
-function createCornerEdges(x0, y0, z0, x1, y1, z1) {
+function createCornerEdges(x0, y0, z0, x1, y1, z1, lineWidth) {
   const points = [
     new THREE.Vector3(x0, y0, z0),
     new THREE.Vector3(x1, y0, z0),
@@ -52,15 +69,25 @@ function createCornerEdges(x0, y0, z0, x1, y1, z1) {
     new THREE.Vector3(x0, y0, z0),
     new THREE.Vector3(x0, y0, z1),
   ];
-  return createLineFace(points, 0x39ff14, 0.95);
+  return createLineFace(points, 0x39ff14, { opacity: 0.95, lineWidth });
+}
+
+/** LineMaterial needs canvas resolution for correct pixel width. */
+export function updateCubeCornerResolution(group, width, height) {
+  group?.traverse((obj) => {
+    if (obj.material?.isLineMaterial) {
+      obj.material.resolution.set(width, height);
+    }
+  });
 }
 
 /**
  * Wireframe cube corner — geometry built from local origin (the corner vertex).
  */
 export function createCubeCorner(options = {}) {
-  const size = options.size ?? 4.5;
+  const size = options.size ?? 20;
   const divisions = options.divisions ?? 36;
+  const lineWidth = options.lineWidth ?? DEFAULT_LINE_WIDTH;
   const group = new THREE.Group();
 
   const x0 = 0;
@@ -72,17 +99,20 @@ export function createCubeCorner(options = {}) {
 
   const floor = createLineFace(
     floorVerticalLines(y0, x0, x1, z1, z0, divisions),
-    0x39ff14
+    0x39ff14,
+    { lineWidth }
   );
   const leftWall = createLineFace(
     wallHorizontalLinesYZ(x0, y0, y1, z1, z0, divisions),
-    0xffdd00
+    0xfffd00,
+    { lineWidth }
   );
   const backWall = createLineFace(
     wallHorizontalLinesXY(z1, x0, x1, y0, y1, divisions),
-    0xff2bd6
+    0xff2bd6,
+    { lineWidth }
   );
-  const edges = createCornerEdges(x0, y0, z0, x1, y1, z1);
+  const edges = createCornerEdges(x0, y0, z0, x1, y1, z1, lineWidth);
 
   group.add(floor, leftWall, backWall, edges);
   return group;

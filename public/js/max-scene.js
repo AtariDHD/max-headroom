@@ -4,7 +4,7 @@ import { RenderPass } from "three/addons/postprocessing/RenderPass.js";
 import { UnrealBloomPass } from "three/addons/postprocessing/UnrealBloomPass.js";
 import { ShaderPass } from "three/addons/postprocessing/ShaderPass.js";
 import { MaxHead, MOVEMENTS } from "./max-head.js";
-import { createCubeCorner } from "./cube-corner.js";
+import { createCubeCorner, updateCubeCornerResolution } from "./cube-corner.js";
 
 const ScanlineShader = {
   uniforms: {
@@ -223,6 +223,7 @@ export class MaxScene {
     this.renderer.setSize(w, h, false);
     this.composer.setSize(w, h);
     this.bloomPass.resolution.set(w, h);
+    if (this.cubeCorner) updateCubeCornerResolution(this.cubeCorner, w, h);
   }
 
   setSpeaking(value) {
