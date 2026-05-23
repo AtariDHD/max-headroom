@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Max Headroom</title>
+    <link rel="stylesheet" href="styles.css" />
+    <script type="importmap">
+      {
+        "imports": {
+          "three": "https://cdn.jsdelivr.net/npm/three@0.176.0/build/three.module.js",
+          "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.176.0/examples/jsm/",
+          "@pixiv/three-vrm": "/vendor/@pixiv/three-vrm/lib/three-vrm.module.js"
+        }
+      }
+    </script>
+  </head>
+  <body>
+    <div class="scanlines" aria-hidden="true"></div>
+    <div class="vignette" aria-hidden="true"></div>
+
+    <div class="app">
+      <header class="header">
+        <div class="brand">
+          <span class="brand-mark">MAX</span>
+          <span class="brand-sub">HEADROOM</span>
+        </div>
+        <p class="brand-tag">20 MINUTES INTO THE FUTURE</p>
+        <p id="status-pill" class="status-pill" role="status">Connecting…</p>
+      </header>
+
+      <section class="stage" aria-label="Max Headroom 3D view">
+        <canvas id="max-canvas"></canvas>
+        <div id="glitch-flash" class="glitch-flash" hidden></div>
+      </section>
+
+      <section class="chat-panel" aria-label="Chat with Max">
+        <div id="messages" class="messages" role="log" aria-live="polite"></div>
+        <form id="chat-form" class="chat-form">
+          <label class="sr-only" for="user-input">Message Max</label>
+          <input
+            id="user-input"
+            type="text"
+            autocomplete="off"
+            placeholder="Talk to Max…"
+            maxlength="500"
+          />
+          <button type="submit" id="send-btn">SEND</button>
+        </form>
+      </section>
+    </div>
+
+    <script type="module" src="js/main.js"></script>
+  </body>
+</html>
