@@ -319,6 +319,105 @@ body {
   cursor: not-allowed;
 }
 
+.cube-debug {
+  position: absolute;
+  top: 0;
+  left: 0;
+  z-index: 10;
+  width: 11rem;
+  min-height: 2.75rem;
+  padding: 0.5rem;
+}
+
+.cube-debug__panel {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  padding: 0.4rem 0.45rem;
+  border: 1px solid transparent;
+  border-radius: 3px;
+  background: transparent;
+  opacity: 0;
+  pointer-events: none;
+  transition:
+    opacity 0.2s ease,
+    background 0.2s ease,
+    border-color 0.2s ease;
+}
+
+.cube-debug:hover .cube-debug__panel,
+.cube-debug:focus-within .cube-debug__panel {
+  opacity: 1;
+  pointer-events: auto;
+  background: rgba(8, 12, 24, 0.92);
+  border-color: var(--border);
+  box-shadow: 0 0 16px rgba(125, 249, 255, 0.12);
+}
+
+.cube-debug__hint {
+  font-family: var(--font-mono);
+  font-size: 0.58rem;
+  letter-spacing: 0.14em;
+  color: rgba(125, 249, 255, 0.35);
+  transition: color 0.2s ease;
+}
+
+.cube-debug:hover .cube-debug__hint,
+.cube-debug:focus-within .cube-debug__hint {
+  color: var(--cyan);
+}
+
+.cube-debug__grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.25rem 0.35rem;
+}
+
+.cube-debug__grid label {
+  display: flex;
+  flex-direction: column;
+  gap: 0.1rem;
+  font-family: var(--font-mono);
+  font-size: 0.52rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.cube-debug__grid input {
+  width: 100%;
+  padding: 0.2rem 0.3rem;
+  font-family: var(--font-mono);
+  font-size: 0.62rem;
+  color: var(--text);
+  background: rgba(0, 0, 0, 0.55);
+  border: 1px solid var(--border);
+  border-radius: 2px;
+  outline: none;
+}
+
+.cube-debug__grid input:focus {
+  border-color: var(--cyan);
+}
+
+.cube-debug__log {
+  align-self: flex-end;
+  padding: 0.25rem 0.45rem;
+  font-family: var(--font-mono);
+  font-size: 0.58rem;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  color: #000;
+  background: var(--cyan);
+  border: none;
+  border-radius: 2px;
+  cursor: pointer;
+}
+
+.cube-debug__log:hover {
+  background: #a8fcff;
+}
+
 .chat-panel {
   display: flex;
   flex-direction: column;

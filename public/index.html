@@ -41,6 +41,22 @@
             <button type="button" id="movement-play-btn">PLAY</button>
           </div>
         </div>
+        <div class="cube-debug" aria-label="Cube corner debug controls">
+          <div class="cube-debug__panel">
+            <span class="cube-debug__hint">CUBE</span>
+            <div class="cube-debug__grid">
+              <label>pos X <input id="cube-px" type="number" step="0.01" /></label>
+              <label>pos Y <input id="cube-py" type="number" step="0.01" /></label>
+              <label>pos Z <input id="cube-pz" type="number" step="0.01" /></label>
+              <label>rot X° <input id="cube-rx" type="number" step="0.1" /></label>
+              <label>rot Y° <input id="cube-ry" type="number" step="0.1" /></label>
+              <label>rot Z° <input id="cube-rz" type="number" step="0.1" /></label>
+              <label>scale <input id="cube-scale" type="number" step="0.01" min="0.01" /></label>
+              <label>length <input id="cube-size" type="number" step="0.1" min="0.1" /></label>
+            </div>
+            <button type="button" id="cube-log-btn" class="cube-debug__log">LOG</button>
+          </div>
+        </div>
       </section>
 
       <section class="chat-panel" aria-label="Chat with Max">

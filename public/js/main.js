@@ -2,6 +2,7 @@ import { MaxScene } from "./max-scene.js";
 import { MaxVoice } from "./max-voice.js";
 import { MaxEffects } from "./max-effects.js";
 import { MaxSpeechInput } from "./max-speech-input.js";
+import { initCubeDebug } from "./cube-debug.js";
 import { formatMaxMessage, appendMessage } from "./max-chat.js";
 
 const canvas = document.getElementById("max-canvas");
@@ -17,6 +18,7 @@ const movementSelect = document.getElementById("movement-select");
 const movementPlayBtn = document.getElementById("movement-play-btn");
 
 const scene = new MaxScene(canvas);
+initCubeDebug(scene);
 const effects = new MaxEffects({ stage, flash, scene });
 const voice = new MaxVoice({
   onStart: () => scene.setSpeaking(true),

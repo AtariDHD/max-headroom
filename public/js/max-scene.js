@@ -5,6 +5,7 @@ import { UnrealBloomPass } from "three/addons/postprocessing/UnrealBloomPass.js"
 import { ShaderPass } from "three/addons/postprocessing/ShaderPass.js";
 import { MaxHead, MOVEMENTS } from "./max-head.js";
 import { createCubeCorner, updateCubeCornerResolution } from "./cube-corner.js";
+import { CubeCornerAnimator } from "./cube-corner-anim.js";
 
 const ScanlineShader = {
   uniforms: {
@@ -144,8 +145,74 @@ export class MaxScene {
     this.scene.add(this.head.group);
     this._showLoading();
 
-    this.cubeCorner = createCubeCorner({ size: 4.5, divisions: 36 });
+    this.cubeCorner = createCubeCorner({ size: 20, divisions: 72 });
+    this._cubeDivisions = 72;
+    this._cubeSize = 18;
     this.scene.add(this.cubeCorner);
+  }
+
+  getCubeCornerConfig() {
+    if (!this.cubeCorner) {
+      return { px: 0, py: 0, pz: 0, rx: 0, ry: 0, rz: 0, scale: 1, size: 18 };
+    }
+    const r = this.cubeCorner.rotation;
+    return {
+      px: +this.cubeCorner.position.x.toFixed(3),
+      py: +this.cubeCorner.position.y.toFixed(3),
+      pz: +this.cubeCorner.position.z.toFixed(3),
+      rx: +THREE.MathUtils.radToDeg(r.x).toFixed(2),
+      ry: +THREE.MathUtils.radToDeg(r.y).toFixed(2),
+      rz: +THREE.MathUtils.radToDeg(r.z).toFixed(2),
+      scale: +this.cubeCorner.scale.x.toFixed(3),
+      size: this._cubeSize,
+    };
+  }
+
+  applyCubeCorner({ px, py, pz, rx, ry, rz, scale, size }) {
+    if (!this.cubeCorner) return;
+
+    if (Number.isFinite(size) && size > 0 && size !== this._cubeSize) {
+      this._rebuildCubeCorner(size);
+    }
+
+    if (Number.isFinite(px)) this.cubeCorner.position.x = px;
+    if (Number.isFinite(py)) this.cubeCorner.position.y = py;
+    if (Number.isFinite(pz)) this.cubeCorner.position.z = pz;
+
+    if (Number.isFinite(rx) || Number.isFinite(ry) || Number.isFinite(rz)) {
+      this.cubeCorner.rotation.order = "YXZ";
+      if (Number.isFinite(rx)) this.cubeCorner.rotation.x = THREE.MathUtils.degToRad(rx);
+      if (Number.isFinite(ry)) this.cubeCorner.rotation.y = THREE.MathUtils.degToRad(ry);
+      if (Number.isFinite(rz)) this.cubeCorner.rotation.z = THREE.MathUtils.degToRad(rz);
+    }
+
+    if (Number.isFinite(scale) && scale > 0) {
+      this.cubeCorner.scale.setScalar(scale);
+    }
+  }
+
+  _rebuildCubeCorner(size) {
+    const pos = this.cubeCorner.position.clone();
+    const rot = this.cubeCorner.rotation.clone();
+    const scale = this.cubeCorner.scale.clone();
+
+    this.scene.remove(this.cubeCorner);
+    this._cubeSize = size;
+    this.cubeCorner = createCubeCorner({
+      size,
+      divisions: this._cubeDivisions,
+    });
+    this.cubeCorner.position.copy(pos);
+    this.cubeCorner.rotation.copy(rot);
+    this.cubeCorner.scale.copy(scale);
+    this.scene.add(this.cubeCorner);
+
+    const parent = this.canvas.parentElement;
+    updateCubeCornerResolution(
+      this.cubeCorner,
+      parent?.clientWidth ?? 800,
+      parent?.clientHeight ?? 500
+    );
   }
 
   _fitCameraToHead() {
@@ -160,10 +227,14 @@ export class MaxScene {
     if (this.cubeCorner) {
       this.cubeCorner.position.set(-2.75, target.y - 3, -1.42);
       this.cubeCorner.rotation.order = "YXZ";
-      this.cubeCorner.rotation.y = THREE.MathUtils.degToRad(-2);
-      this.cubeCorner.rotation.x = THREE.MathUtils.degToRad(10);
+      this.cubeCorner.rotation.y = THREE.MathUtils.degToRad(6.5);
+      this.cubeCorner.rotation.x = THREE.MathUtils.degToRad(0.3);
       this.cubeCorner.rotation.z = THREE.MathUtils.degToRad(10);
-      this.cubeCorner.scale.setScalar(2.5);
+      this.cubeCorner.scale.setScalar(2.25);
+      if (!this._cubeAnimator) {
+        this._cubeAnimator = new CubeCornerAnimator(() => this.cubeCorner);
+        this._cubeAnimator.start();
+      }
     }
 
     // Local key on head + jacket/tie
@@ -265,6 +336,7 @@ export class MaxScene {
 
   tick(time) {
     this.head.update(time, this.speaking || this.head.isTestSpeaking());
+    this._cubeAnimator?.update(time);
 
     if (this._glitchDecay > 0) {
       this._glitchDecay = Math.max(0, this._glitchDecay - 0.02);
