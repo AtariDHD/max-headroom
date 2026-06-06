@@ -658,6 +658,132 @@ body {
   cursor: not-allowed;
 }
 
+/* --- Conversation area: 1980s green monochrome CRT --- */
+.chat-panel {
+  --crt-green: #36ff6b;
+  --crt-green-bright: #8dffb0;
+  --crt-green-soft: rgba(54, 255, 107, 0.55);
+  --crt-green-faint: rgba(54, 255, 107, 0.16);
+  --crt-screen: #02160a;
+  --crt-ink: #021c0a;
+}
+
+.messages,
+#user-input,
+#send-btn,
+.msg-replay-btn {
+  font-family: "fixedsys", "Cascadia Mono", monospace;
+}
+
+.messages {
+  background-color: var(--crt-screen);
+  background-image: repeating-linear-gradient(
+    0deg,
+    rgba(0, 0, 0, 0.28) 0px,
+    rgba(0, 0, 0, 0.28) 1px,
+    transparent 1px,
+    transparent 3px
+  );
+  border-color: var(--crt-green-soft);
+  color: var(--crt-green);
+  text-shadow: 0 0 4px rgba(54, 255, 107, 0.45);
+  font-size: 1rem;
+  line-height: 1.5;
+}
+
+.chat-panel .msg.user {
+  background: var(--crt-green-faint);
+  border-left-color: var(--crt-green);
+  color: var(--crt-green);
+}
+
+.chat-panel .msg.max {
+  background: rgba(54, 255, 107, 0.07);
+  border-left-color: var(--crt-green);
+  color: var(--crt-green);
+}
+
+.chat-panel .msg.system {
+  color: var(--crt-green-soft);
+}
+
+.chat-panel .msg.max .stutter {
+  color: var(--crt-green-bright);
+}
+
+.chat-panel .msg.max .glitch-word {
+  color: var(--crt-green-bright);
+  text-shadow: 1px 0 rgba(54, 255, 107, 0.5);
+}
+
+.chat-panel .msg.max.speaking .speak-word--active {
+  color: var(--crt-ink);
+  background: var(--crt-green);
+  box-shadow: 0 0 8px rgba(54, 255, 107, 0.55);
+}
+
+.chat-panel .msg.max.speaking .speak-word.stutter.speak-word--active {
+  color: var(--crt-ink);
+  background: var(--crt-green-bright);
+  box-shadow: 0 0 8px rgba(141, 255, 176, 0.55);
+}
+
+.chat-panel .msg-replay-btn {
+  color: var(--crt-ink);
+  background: var(--crt-green);
+}
+
+.chat-panel .msg-replay-btn:hover:not(:disabled) {
+  background: var(--crt-green-bright);
+}
+
+#user-input {
+  color: var(--crt-green);
+  background: var(--crt-screen);
+  border-color: var(--crt-green-soft);
+  text-shadow: 0 0 4px rgba(54, 255, 107, 0.4);
+}
+
+#user-input::placeholder {
+  color: rgba(54, 255, 107, 0.4);
+}
+
+#user-input:focus {
+  border-color: var(--crt-green);
+  box-shadow: 0 0 12px rgba(54, 255, 107, 0.3);
+}
+
+.voice-btn:hover:not(:disabled) {
+  color: var(--crt-green);
+  background: rgba(54, 255, 107, 0.1);
+}
+
+.voice-btn.listening {
+  color: var(--crt-green);
+  background: rgba(54, 255, 107, 0.14);
+  box-shadow: 0 0 12px rgba(54, 255, 107, 0.4);
+  animation: mic-pulse-green 1.2s ease-in-out infinite;
+}
+
+@keyframes mic-pulse-green {
+  0%,
+  100% {
+    box-shadow: 0 0 8px rgba(54, 255, 107, 0.25);
+  }
+  50% {
+    box-shadow: 0 0 16px rgba(54, 255, 107, 0.55);
+  }
+}
+
+#send-btn {
+  color: var(--crt-ink);
+  background: var(--crt-green);
+}
+
+#send-btn:hover:not(:disabled) {
+  background: var(--crt-green-bright);
+}
+
 @media (max-width: 600px) {
   .app {
     padding: 0.5rem;
