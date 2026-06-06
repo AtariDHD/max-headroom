@@ -21,21 +21,4 @@ export class MaxEffects {
       this.flash.classList.add("active");
     }
   }
-
-  /** Run glitches timed to [GLITCH] markers and random stutters */
-  scheduleForSpeech(text, durationMs = 3000) {
-    this._timeouts.forEach(clearTimeout);
-    this._timeouts = [];
-
-    // Glitches only on explicit [GLITCH] markers — not random shakes while talking
-    const markers = (text.match(/\[GLITCH\]/gi) || []).length;
-    for (let i = 0; i < markers; i++) {
-      const at = (durationMs / (markers + 1)) * (i + 1);
-      this._timeouts.push(
-        setTimeout(() => this.pulseGlitch(0.8 + Math.random() * 0.4), at)
-      );
-    }
-  }
-
-  _timeouts = [];
 }

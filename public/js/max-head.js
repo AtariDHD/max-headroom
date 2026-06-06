@@ -30,7 +30,7 @@ export const MOVEMENTS = [
   { id: "look-left", label: "Look left", group: "Face", type: "expression", name: "lookLeft" },
   { id: "look-right", label: "Look right", group: "Face", type: "expression", name: "lookRight" },
   { id: "expr-neutral", label: "Neutral (reset face)", group: "Face", type: "expression", name: "neutral", duration: 400 },
-  { id: "head-stutter", label: "Head: stutter nod", group: "Head", type: "head-stutter", intensity: 1.2 },
+  { id: "head-stutter", label: "Head: stutter nod", group: "Head", type: "head-stutter", intensity: 2.5 },
   { id: "head-speaking", label: "Head: speaking sway", group: "Head", type: "head-speaking", duration: 2200 },
   { id: "head-idle", label: "Head: idle drift", group: "Head", type: "head-idle", duration: 3000 },
   { id: "glitch-full", label: "Glitch: full (screen + face)", group: "Effects", type: "external" },

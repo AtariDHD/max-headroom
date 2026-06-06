@@ -3,7 +3,8 @@ import { MaxVoice } from "./max-voice.js";
 import { MaxEffects } from "./max-effects.js";
 import { MaxSpeechInput } from "./max-speech-input.js";
 import { initCubeDebug } from "./cube-debug.js";
-import { formatMaxMessage, appendMessage } from "./max-chat.js";
+import { appendMessage, appendMaxMessage, MaxMessageHighlighter } from "./max-chat.js";
+import { initSpeechDebug } from "./speech-debug.js";
 
 const canvas = document.getElementById("max-canvas");
 const messagesEl = document.getElementById("messages");
@@ -20,18 +21,33 @@ const movementPlayBtn = document.getElementById("movement-play-btn");
 const scene = new MaxScene(canvas);
 initCubeDebug(scene);
 const effects = new MaxEffects({ stage, flash, scene });
+const highlighter = new MaxMessageHighlighter();
+let activeMessageBody = null;
+const speechDebug = initSpeechDebug();
+
 const voice = new MaxVoice({
   onStart: () => scene.setSpeaking(true),
   onEnd: () => {
     scene.setSpeaking(false);
     scene.setMouthLevel(0);
     setBusy(false);
+    input.focus();
   },
   onWord: (level) => scene.setMouthLevel(level),
   onStutter: () => {
     scene.head.stutterNod(1.2);
-    effects.pulseGlitch(0.5);
   },
+  onStutterStart: (wordIndex) => highlighter.holdWord(wordIndex),
+  onStutterEnd: () => highlighter.releaseHold(),
+  onGlitch: () => effects.pulseGlitch(0.8 + Math.random() * 0.4),
+  onSpeakStart: ({ rawText, alignment, durationMs }) => {
+    speechDebug?.onSpeakStart?.({ rawText, alignment, durationMs });
+    if (activeMessageBody) {
+      highlighter.start(activeMessageBody, rawText, alignment, durationMs);
+    }
+  },
+  onSpeakProgress: (atSec) => highlighter.update(atSec),
+  onSpeakStop: () => highlighter.stop(),
 });
 
 const history = [];
@@ -49,6 +65,30 @@ function setBusy(value) {
   input.disabled = value;
   sendBtn.disabled = value;
   speechInput.setEnabled(!value);
+  messagesEl.querySelectorAll(".msg-replay-btn").forEach((btn) => {
+    btn.disabled = value;
+  });
+}
+
+async function speakMaxMessage(text, messageBody) {
+  activeMessageBody = messageBody ?? null;
+  try {
+    await voice.speak(text);
+  } finally {
+    activeMessageBody = null;
+  }
+}
+
+async function replayMaxMessage(text, messageBody) {
+  if (busy || !text?.trim()) return;
+
+  voice.stop();
+  setBusy(true);
+  try {
+    await speakMaxMessage(text, messageBody);
+  } finally {
+    setBusy(false);
+  }
 }
 
 async function sendMessage(text) {
@@ -80,12 +120,10 @@ async function sendMessage(text) {
 
     const reply = data.text;
     history.push({ role: "assistant", content: reply });
-    appendMessage(messagesEl, "max", formatMaxMessage(reply));
+    const msgEl = appendMaxMessage(messagesEl, reply);
 
-    const estDuration = Math.max(2500, reply.length * 55);
-    effects.scheduleForSpeech(reply, estDuration);
     try {
-      await voice.speak(reply);
+      await speakMaxMessage(reply, msgEl.querySelector(".msg-max__body"));
     } finally {
       setBusy(false);
     }
@@ -161,12 +199,11 @@ async function init() {
   // Greet
   const greeting =
     "C-c-c-caught you loading! I'm Max Headroom — twenty minutes into the future. What's your story, viewer?";
-  appendMessage(messagesEl, "max", formatMaxMessage(greeting));
+  const greetingEl = appendMaxMessage(messagesEl, greeting);
   history.push({ role: "assistant", content: greeting });
-  effects.scheduleForSpeech(greeting, 4500);
   setBusy(true);
   try {
-    await voice.speak(greeting);
+    await speakMaxMessage(greeting, greetingEl.querySelector(".msg-max__body"));
   } catch {
     /* speech failed — input still unlocked in finally */
   } finally {
@@ -185,6 +222,15 @@ document.addEventListener(
 movementPlayBtn?.addEventListener("click", () => playSelectedMovement());
 
 voiceBtn?.addEventListener("click", () => speechInput.toggle());
+
+messagesEl.addEventListener("click", (e) => {
+  const btn = e.target.closest(".msg-replay-btn");
+  if (!btn || btn.disabled) return;
+  const msg = btn.closest(".msg.max");
+  const text = msg?.dataset.replayText;
+  const body = msg?.querySelector(".msg-max__body");
+  if (text && body) replayMaxMessage(text, body);
+});
 
 form.addEventListener("submit", async (e) => {
   e.preventDefault();

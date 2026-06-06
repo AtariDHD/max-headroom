@@ -144,37 +144,61 @@ app.post("/api/speech", async (req, res) => {
     return res.status(503).json({ error: "ElevenLabs not configured" });
   }
 
+  const spokenText = text.replace(/\[GLITCH\]/gi, "... ").trim();
+  const ttsBody = JSON.stringify({
+    text: spokenText,
+    model_id: "eleven_turbo_v2_5",
+    voice_settings: {
+      stability: 0.35,
+      similarity_boost: 0.75,
+      style: 0.65,
+      use_speaker_boost: true,
+    },
+  });
+  const ttsHeaders = {
+    "xi-api-key": apiKey,
+    "Content-Type": "application/json",
+  };
+
   try {
-    const response = await fetch(
-      `https://api.elevenlabs.io/v1/text-to-speech/${voiceId}`,
-      {
-        method: "POST",
-        headers: {
-          "xi-api-key": apiKey,
-          "Content-Type": "application/json",
-          Accept: "audio/mpeg",
-        },
-        body: JSON.stringify({
-          text: text.replace(/\[GLITCH\]/gi, "... "),
-          model_id: "eleven_turbo_v2_5",
-          voice_settings: {
-            stability: 0.35,
-            similarity_boost: 0.75,
-            style: 0.65,
-            use_speaker_boost: true,
-          },
-        }),
-      }
+    let audioBase64 = null;
+    let alignment = null;
+    let normalizedAlignment = null;
+
+    const tsResponse = await fetch(
+      `https://api.elevenlabs.io/v1/text-to-speech/${voiceId}/with-timestamps?output_format=mp3_44100_128`,
+      { method: "POST", headers: ttsHeaders, body: ttsBody }
     );
 
-    if (!response.ok) {
-      const detail = await response.text();
-      throw new Error(detail || response.statusText);
+    if (tsResponse.ok) {
+      const data = await tsResponse.json();
+      audioBase64 = data.audio_base64 ?? null;
+      alignment = data.alignment ?? null;
+      normalizedAlignment = data.normalized_alignment ?? null;
+    } else {
+      const detail = await tsResponse.text();
+      console.warn("TTS with-timestamps failed, using standard endpoint:", detail);
     }
 
-    const buffer = Buffer.from(await response.arrayBuffer());
-    res.set("Content-Type", "audio/mpeg");
-    res.send(buffer);
+    if (!audioBase64) {
+      const response = await fetch(
+        `https://api.elevenlabs.io/v1/text-to-speech/${voiceId}?output_format=mp3_44100_128`,
+        { method: "POST", headers: ttsHeaders, body: ttsBody }
+      );
+      if (!response.ok) {
+        const detail = await response.text();
+        throw new Error(detail || response.statusText);
+      }
+      audioBase64 = Buffer.from(await response.arrayBuffer()).toString("base64");
+    }
+
+    res.json({
+      audio: audioBase64,
+      mime: "audio/mpeg",
+      alignment,
+      normalized_alignment: normalizedAlignment,
+      spokenText,
+    });
   } catch (err) {
     console.error("TTS error:", err.message);
     res.status(500).json({ error: "Speech synthesis failed" });

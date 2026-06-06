@@ -67,7 +67,7 @@ export class MaxScene {
     this._initScene();
     this._initComposer();
     this._onResize();
-    window.addEventListener("resize", () => this._onResize());
+    this._observeResize();
 
     this.ready = this.head.loading
       .then(() => {
@@ -285,10 +285,27 @@ export class MaxScene {
     this.composer.addPass(this.scanPass);
   }
 
+  /**
+   * Watch the stage element directly so we resync on ANY size change —
+   * window resize, the chat panel growing, etc. A plain window "resize"
+   * listener misses layout-driven changes and lets the canvas buffer get
+   * stretched, distorting Max's aspect ratio.
+   */
+  _observeResize() {
+    const parent = this.canvas.parentElement;
+    if (typeof ResizeObserver !== "undefined" && parent) {
+      this._resizeObserver = new ResizeObserver(() => this._onResize());
+      this._resizeObserver.observe(parent);
+    } else {
+      window.addEventListener("resize", () => this._onResize());
+    }
+  }
+
   _onResize() {
     const parent = this.canvas.parentElement;
     const w = parent.clientWidth;
     const h = parent.clientHeight;
+    if (w === 0 || h === 0) return;
     this.camera.aspect = w / h;
     this.camera.updateProjectionMatrix();
     this.renderer.setSize(w, h, false);

@@ -454,13 +454,78 @@ body {
 }
 
 .msg.max {
+  position: relative;
+  padding-right: 4.25rem;
   background: rgba(255, 43, 214, 0.08);
   border-left: 2px solid var(--magenta);
+}
+
+.msg-max__body {
+  display: block;
+}
+
+.msg-replay-btn {
+  position: absolute;
+  top: 0.35rem;
+  right: 0.4rem;
+  padding: 0.2rem 0.45rem;
+  font-family: var(--font-mono);
+  font-size: 0.58rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #000;
+  background: var(--magenta);
+  border: none;
+  border-radius: 2px;
+  cursor: pointer;
+  opacity: 0;
+  pointer-events: none;
+  transition:
+    opacity 0.15s ease,
+    background 0.15s ease;
+}
+
+.msg.max:hover .msg-replay-btn,
+.msg.max:focus-within .msg-replay-btn {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.msg-replay-btn:hover:not(:disabled) {
+  background: #ff5de3;
+}
+
+.msg-replay-btn:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
 }
 
 .msg.max .stutter {
   color: var(--cyan);
   font-weight: 700;
+}
+
+.msg.max.speaking .speak-word {
+  opacity: 0.42;
+  transition:
+    opacity 0.08s ease,
+    color 0.08s ease,
+    background 0.08s ease;
+}
+
+.msg.max.speaking .speak-word--active {
+  opacity: 1;
+  color: #fff;
+  background: rgba(0, 255, 255, 0.18);
+  border-radius: 2px;
+  box-shadow: 0 0 8px rgba(0, 255, 255, 0.35);
+}
+
+.msg.max.speaking .speak-word.stutter.speak-word--active {
+  color: #fff;
+  background: rgba(255, 43, 214, 0.28);
+  box-shadow: 0 0 8px rgba(255, 43, 214, 0.35);
 }
 
 .msg.max .glitch-word {
