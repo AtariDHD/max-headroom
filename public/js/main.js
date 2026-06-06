@@ -175,7 +175,10 @@ async function init() {
   try {
     const res = await fetch("/api/status");
     const data = await res.json();
-    speechInput.configure({ transcribe: data.transcribe });
+    speechInput.configure({
+      transcribe: data.transcribe,
+      realtime: data.realtime,
+    });
     if (!data.chat) {
       statusText = "DEMO CHAT — add OPENAI_API_KEY";
       statusPill.classList.add("demo");

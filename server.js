@@ -1,9 +1,11 @@
 import "dotenv/config";
 import express from "express";
 import fs from "fs";
+import http from "http";
 import OpenAI, { toFile } from "openai";
 import path from "path";
 import { fileURLToPath } from "url";
+import { WebSocket, WebSocketServer } from "ws";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const ASSETS_DIR = path.join(__dirname, "assets");
@@ -46,6 +48,7 @@ app.get("/api/status", (_req, res) => {
   res.json({
     chat: Boolean(openai),
     transcribe: Boolean(openai),
+    realtime: Boolean(process.env.OPENAI_API_KEY),
     elevenlabs: Boolean(
       process.env.ELEVENLABS_API_KEY && process.env.ELEVENLABS_VOICE_ID
     ),
@@ -205,7 +208,10 @@ app.post("/api/speech", async (req, res) => {
   }
 });
 
-app.listen(PORT, () => {
+const server = http.createServer(app);
+setupRealtimeTranscribeProxy(server);
+
+server.listen(PORT, () => {
   console.log(`Max Headroom live at http://localhost:${PORT}`);
   const modelPaths = [
     path.join(ASSETS_DIR, "MaxHeadRoom.vrm"),
@@ -224,3 +230,134 @@ app.listen(PORT, () => {
     console.log("  → Browser voice (set ELEVENLABS_* for premium TTS)");
   }
 });
+
+/**
+ * Proxy realtime transcription so the OpenAI key never reaches the browser.
+ * Browser <-> this server <-> wss://api.openai.com/v1/realtime.
+ * Client sends { audio: base64Pcm16 } and { type: "commit" }; server relays
+ * transcription deltas back as { type: "delta"|"completed", text }.
+ */
+function setupRealtimeTranscribeProxy(httpServer) {
+  const wss = new WebSocketServer({
+    server: httpServer,
+    path: "/api/realtime-transcribe",
+  });
+
+  wss.on("connection", (client) => {
+    const apiKey = process.env.OPENAI_API_KEY;
+    if (!apiKey) {
+      client.send(JSON.stringify({ type: "error", error: "Realtime transcription not configured" }));
+      client.close();
+      return;
+    }
+
+    const upstream = new WebSocket(
+      "wss://api.openai.com/v1/realtime?intent=transcription",
+      {
+        headers: {
+          Authorization: `Bearer ${apiKey}`,
+          "OpenAI-Beta": "realtime=v1",
+        },
+      }
+    );
+
+    let upstreamReady = false;
+    const pending = [];
+
+    const flushPending = () => {
+      while (pending.length) upstream.send(pending.shift());
+    };
+    const sendUpstream = (obj) => {
+      const data = JSON.stringify(obj);
+      if (upstreamReady && upstream.readyState === WebSocket.OPEN) {
+        upstream.send(data);
+      } else {
+        pending.push(data);
+      }
+    };
+
+    upstream.on("open", () => {
+      upstream.send(
+        JSON.stringify({
+          type: "session.update",
+          session: {
+            type: "transcription",
+            audio: {
+              input: {
+                format: { type: "audio/pcm", rate: 24000 },
+                noise_reduction: { type: "near_field" },
+                transcription: { model: "gpt-4o-mini-transcribe", language: "en" },
+                turn_detection: {
+                  type: "server_vad",
+                  threshold: 0.5,
+                  prefix_padding_ms: 300,
+                  silence_duration_ms: 600,
+                },
+              },
+            },
+          },
+        })
+      );
+      upstreamReady = true;
+      flushPending();
+      if (client.readyState === WebSocket.OPEN) {
+        client.send(JSON.stringify({ type: "ready" }));
+      }
+    });
+
+    upstream.on("message", (raw) => {
+      let evt;
+      try {
+        evt = JSON.parse(raw.toString());
+      } catch {
+        return;
+      }
+      if (client.readyState !== WebSocket.OPEN) return;
+
+      if (evt.type === "conversation.item.input_audio_transcription.delta") {
+        client.send(JSON.stringify({ type: "delta", text: evt.delta ?? "" }));
+      } else if (evt.type === "conversation.item.input_audio_transcription.completed") {
+        client.send(JSON.stringify({ type: "completed", text: evt.transcript ?? "" }));
+      } else if (evt.type === "error") {
+        console.error("Realtime upstream error:", evt.error?.message || evt.error);
+        client.send(JSON.stringify({ type: "error", error: evt.error?.message || "Realtime error" }));
+      }
+    });
+
+    upstream.on("error", (err) => {
+      console.error("Realtime upstream socket error:", err.message);
+      if (client.readyState === WebSocket.OPEN) {
+        client.send(JSON.stringify({ type: "error", error: "Realtime connection failed" }));
+        client.close();
+      }
+    });
+
+    upstream.on("close", () => {
+      if (client.readyState === WebSocket.OPEN) client.close();
+    });
+
+    client.on("message", (raw) => {
+      let msg;
+      try {
+        msg = JSON.parse(raw.toString());
+      } catch {
+        return;
+      }
+      if (msg.audio) {
+        sendUpstream({ type: "input_audio_buffer.append", audio: msg.audio });
+      } else if (msg.type === "commit") {
+        sendUpstream({ type: "input_audio_buffer.commit" });
+      }
+    });
+
+    client.on("close", () => {
+      if (upstream.readyState === WebSocket.OPEN || upstream.readyState === WebSocket.CONNECTING) {
+        upstream.close();
+      }
+    });
+
+    client.on("error", () => {
+      if (upstream.readyState === WebSocket.OPEN) upstream.close();
+    });
+  });
+}

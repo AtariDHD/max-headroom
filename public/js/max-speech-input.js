@@ -1,6 +1,9 @@
+import { RealtimeTranscriber } from "./max-realtime-transcribe.js";
+
 /**
- * Voice input — server-side Whisper when OpenAI is configured,
- * otherwise browser Web Speech API (Chrome sends audio to Google).
+ * Voice input — OpenAI realtime streaming transcription when available
+ * (live word-by-word over WebSocket), server-side Whisper as the next
+ * option, otherwise the browser Web Speech API (Chrome sends audio to Google).
  */
 export class MaxSpeechInput {
   /**
@@ -27,12 +30,17 @@ export class MaxSpeechInput {
     this._syncButton();
   }
 
-  configure({ transcribe = false } = {}) {
-    this.mode = transcribe ? "server" : "browser";
+  configure({ transcribe = false, realtime = false } = {}) {
+    const canCapture = Boolean(navigator.mediaDevices?.getUserMedia);
+    if (realtime && canCapture && typeof window.AudioContext !== "undefined") {
+      this.mode = "realtime";
+    } else if (transcribe) {
+      this.mode = "server";
+    } else {
+      this.mode = "browser";
+    }
     this.supported =
-      this.mode === "server"
-        ? Boolean(navigator.mediaDevices?.getUserMedia)
-        : this._hasBrowserRecognition();
+      this.mode === "browser" ? this._hasBrowserRecognition() : canCapture;
     this._syncButton();
   }
 
@@ -50,6 +58,11 @@ export class MaxSpeechInput {
 
   toggle() {
     if (!this.supported || !this._enabled || this._transcribing) return;
+    if (this.mode === "realtime") {
+      if (this.listening) this._stopRealtime();
+      else this._startRealtime();
+      return;
+    }
     if (this.mode === "server") {
       if (this.listening) this._stopServerRecording();
       else this._startServerRecording();
@@ -60,11 +73,98 @@ export class MaxSpeechInput {
   }
 
   stop() {
+    if (this.mode === "realtime" && this.listening) {
+      this._stopRealtime();
+      return;
+    }
     if (this.mode === "server" && this.listening) {
       this._stopServerRecording();
       return;
     }
     this._stopBrowserRecognition();
+  }
+
+  // --- Realtime streaming transcription (OpenAI over WebSocket) ------------
+
+  async _startRealtime() {
+    this._realtimeFell = false;
+    this._realtimeGotText = false;
+
+    this._realtime = new RealtimeTranscriber({
+      onPartial: (text) => {
+        if (!this.listening) return;
+        if (text) {
+          this._realtimeGotText = true;
+          this.input.value = text;
+        }
+      },
+      onError: (message) => this._onRealtimeError(message),
+    });
+
+    try {
+      this._setListening(true);
+      await this._realtime.start();
+      this._maxTimer = window.setTimeout(() => this._stopRealtime(), 30000);
+    } catch (err) {
+      const denied =
+        err?.name === "NotAllowedError" || err?.name === "SecurityError";
+      if (denied) {
+        this._setListening(false);
+        this._realtime = null;
+        this.onError?.(
+          "Microphone access denied — allow mic permission in your browser."
+        );
+        return;
+      }
+      // Couldn't start realtime — fall back to Whisper recording.
+      this._fallbackToWhisper();
+    }
+  }
+
+  _stopRealtime() {
+    if (!this.listening || !this._realtime) return;
+    clearTimeout(this._maxTimer);
+    this._setListening(false);
+    const transcriber = this._realtime;
+    this._realtime = null;
+
+    transcriber
+      .stop()
+      .then((text) => {
+        const finalText = String(text ?? "").trim();
+        if (finalText) {
+          this.input.value = finalText;
+          this.onResult(finalText);
+        } else if (!this._realtimeGotText) {
+          this.onError?.("No speech detected — try again.");
+        }
+      })
+      .catch(() => {
+        this.onError?.("Transcription failed.");
+      });
+  }
+
+  _onRealtimeError(message) {
+    if (this._realtimeFell) return;
+    // If realtime fails before producing any text, fall back to Whisper.
+    if (!this._realtimeGotText && this._realtime) {
+      this._fallbackToWhisper();
+      return;
+    }
+    this.onError?.(message || "Realtime transcription error.");
+  }
+
+  _fallbackToWhisper() {
+    this._realtimeFell = true;
+    this._realtime?.abort();
+    this._realtime = null;
+    this._setListening(false);
+    if (!Boolean(navigator.mediaDevices?.getUserMedia)) {
+      this.onError?.("Voice input unavailable.");
+      return;
+    }
+    this.mode = "server";
+    this._startServerRecording();
   }
 
   // --- Server recording (Whisper) -----------------------------------------
@@ -93,6 +193,7 @@ export class MaxSpeechInput {
       this._mediaRecorder.start(250);
       this._setListening(true);
       this._startSilenceMonitor();
+      this._startLivePartials();
       this._maxTimer = window.setTimeout(
         () => this._stopServerRecording(),
         25000
@@ -113,12 +214,68 @@ export class MaxSpeechInput {
     if (!this.listening) return;
     clearTimeout(this._maxTimer);
     this._stopSilenceMonitor();
+    this._stopLivePartials();
     this._setListening(false);
 
     if (this._mediaRecorder?.state === "recording") {
       this._mediaRecorder.stop();
     } else {
       this._releaseStream();
+    }
+  }
+
+  /**
+   * Live preview by re-transcribing the audio captured so far every ~1.6s and
+   * showing the partial text. Works in any browser (including Brave, which
+   * blocks the Web Speech API). The final Whisper pass on stop is authoritative.
+   */
+  _startLivePartials() {
+    this._partialGen = (this._partialGen ?? 0) + 1;
+    this._partialBusy = false;
+    this._lastPartialChunkCount = 0;
+    this._partialTimer = window.setInterval(() => this._runPartial(), 1600);
+  }
+
+  _stopLivePartials() {
+    this._partialGen = (this._partialGen ?? 0) + 1;
+    clearInterval(this._partialTimer);
+    this._partialTimer = null;
+  }
+
+  async _runPartial() {
+    if (!this.listening || this._transcribing || this._partialBusy) return;
+    if (!this._chunks || this._chunks.length <= this._lastPartialChunkCount) {
+      return; // no new audio since last partial
+    }
+
+    this._lastPartialChunkCount = this._chunks.length;
+    const gen = this._partialGen;
+    const mime = this._recordMime;
+    this._partialBusy = true;
+
+    try {
+      const blob = new Blob(this._chunks, { type: mime });
+      const audio = await blobToBase64(blob);
+      const res = await fetch("/api/transcribe", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ audio, mime, partial: true }),
+      });
+      if (!res.ok) return;
+      const data = await res.json();
+      const text = String(data.text ?? "").trim();
+      if (
+        text &&
+        gen === this._partialGen &&
+        this.listening &&
+        !this._transcribing
+      ) {
+        this.input.value = text;
+      }
+    } catch {
+      /* partial failures are non-fatal — final pass will catch up */
+    } finally {
+      this._partialBusy = false;
     }
   }
 
@@ -342,7 +499,7 @@ export class MaxSpeechInput {
       this.button.title = "Transcribing…";
     } else if (this.listening) {
       this.button.title =
-        this.mode === "server" ? "Stop recording" : "Stop listening";
+        this.mode === "browser" ? "Stop listening" : "Stop recording";
     } else {
       this.button.title = "Speak to Max";
     }
