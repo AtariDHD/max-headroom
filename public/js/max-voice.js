@@ -6,13 +6,18 @@
 import {
   buildGlitchSchedule,
   buildGlitchScheduleFromAlignment,
+  buildSentenceScheduleFromAlignment,
   buildStutterSchedule,
   buildStutterScheduleFromAlignment,
   stripStutterForSpeech,
 } from "./max-chat.js";
 
+/** Silence inserted after punctuation for natural phrasing (seconds). */
+const SENTENCE_PAUSE_SEC = 0.35;
+const CLAUSE_PAUSE_SEC = 0.035;
+
 class AudioGlitchPlayback {
-  constructor({ ctx, analyser, buffer, onStutter, onStutterStart, onStutterEnd, onGlitch, onEnded, isAborted }) {
+  constructor({ ctx, analyser, buffer, onStutter, onStutterStart, onStutterEnd, onGlitch, onSentence, onEnded, isAborted }) {
     this.ctx = ctx;
     this.analyser = analyser;
     this.buffer = buffer;
@@ -20,6 +25,7 @@ class AudioGlitchPlayback {
     this.onStutterStart = onStutterStart;
     this.onStutterEnd = onStutterEnd;
     this.onGlitch = onGlitch;
+    this.onSentence = onSentence;
     this.onEnded = onEnded;
     this.isAborted = isAborted;
     this.source = null;
@@ -29,6 +35,7 @@ class AudioGlitchPlayback {
     this.timers = [];
     this.stutterQueue = [];
     this.glitchQueue = [];
+    this.sentenceQueue = [];
     this._inBurst = false;
     this.suppressEnd = false;
   }
@@ -143,6 +150,13 @@ class AudioGlitchPlayback {
     }));
   }
 
+  scheduleSentences(events) {
+    this.sentenceQueue = events.map((ev) => ({
+      atSec: ev.atSec,
+      fired: false,
+    }));
+  }
+
   /** Poll playback head — trigger stutters and glitches at anchor times. */
   update() {
     if (this.isAborted()) return;
@@ -153,6 +167,14 @@ class AudioGlitchPlayback {
       if (!ev.fired && pos >= ev.atSec) {
         ev.fired = true;
         this.onGlitch?.();
+        break;
+      }
+    }
+
+    for (const ev of this.sentenceQueue) {
+      if (!ev.fired && pos >= ev.atSec) {
+        ev.fired = true;
+        this.onSentence?.();
         break;
       }
     }
@@ -182,6 +204,7 @@ class AudioGlitchPlayback {
     this.timers = [];
     this.stutterQueue = [];
     this.glitchQueue = [];
+    this.sentenceQueue = [];
     if (this._inBurst) this.onStutterEnd?.();
     this._inBurst = false;
     this._stopSource();
@@ -189,7 +212,7 @@ class AudioGlitchPlayback {
 }
 
 export class MaxVoice {
-  constructor({ onStart, onEnd, onWord, onStutter, onStutterStart, onStutterEnd, onGlitch, onSpeakStart, onSpeakProgress, onSpeakStop } = {}) {
+  constructor({ onStart, onEnd, onWord, onStutter, onStutterStart, onStutterEnd, onGlitch, onSentence, onSpeakStart, onSpeakProgress, onSpeakStop } = {}) {
     this.onStart = onStart ?? (() => {});
     this.onEnd = onEnd ?? (() => {});
     this.onWord = onWord ?? (() => {});
@@ -197,6 +220,7 @@ export class MaxVoice {
     this.onStutterStart = onStutterStart ?? (() => {});
     this.onStutterEnd = onStutterEnd ?? (() => {});
     this.onGlitch = onGlitch ?? (() => {});
+    this.onSentence = onSentence ?? (() => {});
     this.onSpeakStart = onSpeakStart ?? (() => {});
     this.onSpeakProgress = onSpeakProgress ?? (() => {});
     this.onSpeakStop = onSpeakStop ?? (() => {});
@@ -325,7 +349,14 @@ export class MaxVoice {
     const url = URL.createObjectURL(blob);
 
     const arrayBuf = await fetch(url).then((r) => r.arrayBuffer());
-    const buffer = await this._ctx.decodeAudioData(arrayBuf);
+    const decoded = await this._ctx.decodeAudioData(arrayBuf);
+
+    // Insert real silence between sentences for a natural cadence, shifting
+    // the alignment by the same amount so stutters/glitches/highlights stay
+    // in sync and Max's mouth closes during the pause.
+    const paused = insertSpeechPauses(this._ctx, decoded, alignment);
+    const buffer = paused.buffer;
+    alignment = paused.alignment;
     const durationMs = buffer.duration * 1000;
 
     this._playback = new AudioGlitchPlayback({
@@ -336,6 +367,7 @@ export class MaxVoice {
       onStutterStart: (wordIndex) => this.onStutterStart(wordIndex),
       onStutterEnd: () => this.onStutterEnd(),
       onGlitch: () => this.onGlitch(),
+      onSentence: () => this.onSentence(),
       isAborted: () => this._abort,
       onEnded: null,
     });
@@ -347,8 +379,10 @@ export class MaxVoice {
     const glitchEvents =
       buildGlitchScheduleFromAlignment(rawText, alignment) ??
       buildGlitchSchedule(rawText, durationMs);
+    const sentenceEvents = buildSentenceScheduleFromAlignment(rawText, alignment) ?? [];
     this._playback.scheduleStutters(stutterEvents);
     this._playback.scheduleGlitches(glitchEvents);
+    this._playback.scheduleSentences(sentenceEvents);
 
     this.onSpeakStart({
       rawText,
@@ -565,6 +599,98 @@ function splitOnGlitch(text) {
   if (last < text.length) segments.push({ type: "say", text: text.slice(last) });
   if (!segments.length) segments.push({ type: "say", text });
   return segments;
+}
+
+/**
+ * Insert silence after sentence- and clause-ending punctuation and shift the
+ * ElevenLabs alignment by the matching amount. Sentences (.!?) get a longer
+ * pause than clauses (,;:). Returns the original buffer/alignment untouched
+ * when there's no alignment or no breaks to add.
+ * @returns {{ buffer: AudioBuffer, alignment: object|null }}
+ */
+function insertSpeechPauses(ctx, buffer, alignment) {
+  const starts = alignment?.character_start_times_seconds;
+  const ends = alignment?.character_end_times_seconds;
+  const chars = alignment?.characters;
+  if (!starts?.length || !ends?.length || !chars?.length) {
+    return { buffer, alignment };
+  }
+
+  const isSentenceEnd = (c) => c === "." || c === "!" || c === "?";
+  const isClauseEnd = (c) => c === "," || c === ";" || c === ":";
+  const isDigit = (c) => c >= "0" && c <= "9";
+
+  // Each boundary: { time (original timeline), pause (seconds) }.
+  const boundaries = [];
+  for (let i = 0; i < chars.length; i++) {
+    const c = chars[i];
+    const sentence = isSentenceEnd(c);
+    const clause = isClauseEnd(c);
+    if (!sentence && !clause) continue;
+
+    const next = chars[i + 1];
+    if (sentence && isSentenceEnd(next)) continue; // collapse "?!" / "..." runs
+    if ((c === "." || c === ",") && isDigit(next)) continue; // 3.5 / 1,000
+    if (next && !/\s/.test(next)) continue; // need whitespace after a real break
+
+    let hasMore = false;
+    for (let j = i + 1; j < chars.length; j++) {
+      if (chars[j].trim()) {
+        hasMore = true;
+        break;
+      }
+    }
+    if (!hasMore) continue; // don't pad the final token
+
+    const t = ends[i] ?? starts[i];
+    if (!Number.isFinite(t)) continue;
+    boundaries.push({ time: t, pause: sentence ? SENTENCE_PAUSE_SEC : CLAUSE_PAUSE_SEC });
+  }
+
+  if (!boundaries.length) return { buffer, alignment };
+
+  const rate = buffer.sampleRate;
+  const channels = buffer.numberOfChannels;
+  const totalPauseSamples = boundaries.reduce(
+    (sum, b) => sum + Math.round(b.pause * rate),
+    0
+  );
+  const out = ctx.createBuffer(channels, buffer.length + totalPauseSamples, rate);
+
+  const inserts = boundaries
+    .map((b) => ({
+      sample: Math.max(0, Math.min(buffer.length, Math.round(b.time * rate))),
+      pauseSamples: Math.round(b.pause * rate),
+    }))
+    .sort((a, b) => a.sample - b.sample);
+
+  for (let ch = 0; ch < channels; ch++) {
+    const src = buffer.getChannelData(ch);
+    const dst = out.getChannelData(ch);
+    let read = 0;
+    let write = 0;
+    for (const ins of inserts) {
+      dst.set(src.subarray(read, ins.sample), write);
+      write += ins.sample - read + ins.pauseSamples; // gap stays zero-filled
+      read = ins.sample;
+    }
+    dst.set(src.subarray(read), write);
+  }
+
+  const shift = (t) => {
+    let added = 0;
+    for (const b of boundaries) if (t > b.time + 1e-6) added += b.pause;
+    return t + added;
+  };
+
+  return {
+    buffer: out,
+    alignment: {
+      ...alignment,
+      character_start_times_seconds: starts.map(shift),
+      character_end_times_seconds: ends.map(shift),
+    },
+  };
 }
 
 function base64ToBlob(base64, mime) {

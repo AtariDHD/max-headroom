@@ -36,8 +36,20 @@
       </header>
 
       <section class="stage" aria-label="Max Headroom 3D view">
-        <canvas id="max-canvas"></canvas>
-        <div id="glitch-flash" class="glitch-flash" hidden></div>
+        <div class="tv-bezel">
+          <div class="tv-screen">
+            <canvas id="max-canvas"></canvas>
+            <div id="glitch-flash" class="glitch-flash" hidden></div>
+            <div class="tv-glass" aria-hidden="true"></div>
+          </div>
+        </div>
+        <div class="tv-controls" aria-hidden="true">
+          <div class="tv-dials">
+            <span class="tv-dial tv-dial--channel"></span>
+            <span class="tv-dial tv-dial--tune"></span>
+          </div>
+          <div class="tv-grille"></div>
+        </div>
         <div class="movement-debug" aria-label="Movement test controls">
           <div class="movement-debug__panel">
             <span class="movement-debug__hint">TEST</span>
@@ -60,6 +72,18 @@
               <label>length <input id="cube-size" type="number" step="0.1" min="0.1" /></label>
             </div>
             <button type="button" id="cube-log-btn" class="cube-debug__log">LOG</button>
+          </div>
+        </div>
+        <div class="lighting-debug" aria-label="Lighting test controls">
+          <div class="lighting-debug__panel">
+            <div class="lighting-debug__head">
+              <span class="lighting-debug__hint">LIGHT</span>
+              <div class="lighting-debug__actions">
+                <button type="button" id="lighting-reset-btn">RESET</button>
+                <button type="button" id="lighting-log-btn">LOG</button>
+              </div>
+            </div>
+            <div id="lighting-fields" class="lighting-debug__fields"></div>
           </div>
         </div>
       </section>

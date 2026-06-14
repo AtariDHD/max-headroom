@@ -282,6 +282,31 @@ export function buildWordScheduleFromAlignment(rawText, alignment) {
   }));
 }
 
+/** Times at which each spoken sentence begins (for per-sentence gestures). */
+export function buildSentenceScheduleFromAlignment(_rawText, alignment) {
+  const starts = alignment?.character_start_times_seconds;
+  const chars = alignment?.characters;
+  if (!starts?.length || !chars?.length) return null;
+
+  const isEnd = (c) => c === "." || c === "!" || c === "?";
+  const events = [];
+  let expectStart = true; // start of speech begins the first sentence
+
+  for (let i = 0; i < chars.length; i++) {
+    const c = chars[i];
+    if (expectStart && c.trim()) {
+      events.push({ atSec: starts[i] });
+      expectStart = false;
+    }
+    if (isEnd(c)) {
+      const next = chars[i + 1];
+      if (!next || /\s/.test(next)) expectStart = true; // skip decimals (3.5)
+    }
+  }
+
+  return events.length ? events : null;
+}
+
 /** Fallback word highlight times from total duration. */
 export function buildWordSchedule(rawText, durationMs) {
   const cleanText = stripStutterForSpeech(rawText);

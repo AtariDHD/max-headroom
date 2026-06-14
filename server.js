@@ -256,7 +256,6 @@ function setupRealtimeTranscribeProxy(httpServer) {
       {
         headers: {
           Authorization: `Bearer ${apiKey}`,
-          "OpenAI-Beta": "realtime=v1",
         },
       }
     );
@@ -319,8 +318,11 @@ function setupRealtimeTranscribeProxy(httpServer) {
       } else if (evt.type === "conversation.item.input_audio_transcription.completed") {
         client.send(JSON.stringify({ type: "completed", text: evt.transcript ?? "" }));
       } else if (evt.type === "error") {
-        console.error("Realtime upstream error:", evt.error?.message || evt.error);
-        client.send(JSON.stringify({ type: "error", error: evt.error?.message || "Realtime error" }));
+        const message = evt.error?.message || "Realtime error";
+        // Benign with server VAD: a manual flush found nothing left to commit.
+        if (/buffer (too small|is empty)/i.test(message)) return;
+        console.error("Realtime upstream error:", message);
+        client.send(JSON.stringify({ type: "error", error: message }));
       }
     });
 

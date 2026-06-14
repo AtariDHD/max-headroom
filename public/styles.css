@@ -144,17 +144,186 @@ body {
 .stage {
   position: relative;
   min-height: 0;
-  border: 1px solid var(--border);
-  border-radius: 4px;
+  display: flex;
+  align-items: stretch;
+  gap: 12px;
+  padding: 12px;
+  border-radius: 14px;
   overflow: hidden;
+  /* Brushed-silver faceplate look reused by bezel + control panel */
+  --brushed-silver: repeating-linear-gradient(
+      90deg,
+      rgba(255, 255, 255, 0.32) 0px,
+      rgba(255, 255, 255, 0.32) 1px,
+      transparent 1px,
+      transparent 3px
+    ),
+    linear-gradient(180deg, #dadde1 0%, #b2b5ba 46%, #c6c9ce 100%);
+  /* Warm woodgrain cabinet (thin frame around the silver faceplate) */
+  background-color: #6b4a2a;
+  background-image:
+    repeating-linear-gradient(
+      90deg,
+      rgba(0, 0, 0, 0.14) 0px,
+      rgba(0, 0, 0, 0.14) 1px,
+      transparent 1px,
+      transparent 6px,
+      rgba(255, 235, 200, 0.06) 6px,
+      rgba(255, 235, 200, 0.06) 7px,
+      transparent 7px,
+      transparent 13px
+    ),
+    linear-gradient(180deg, #7d5430 0%, #5d3c1f 52%, #6f4a27 100%);
+  border: 2px solid #2c1a0c;
+  box-shadow:
+    inset 0 2px 1px rgba(255, 220, 170, 0.22),
+    inset 0 -3px 6px rgba(0, 0, 0, 0.5),
+    0 10px 28px rgba(0, 0, 0, 0.55),
+    0 2px 6px rgba(0, 0, 0, 0.4);
+}
+
+/* Large brushed-silver bezel that frames the recessed screen */
+.tv-bezel {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  padding: 20px;
+  border-radius: 10px;
+  background-color: #c2c5c9;
+  background-image: var(--brushed-silver);
+  border: 1px solid #6f7378;
+  box-shadow:
+    inset 0 2px 2px rgba(255, 255, 255, 0.85),
+    inset 2px 0 2px rgba(255, 255, 255, 0.4),
+    inset 0 -3px 4px rgba(0, 0, 0, 0.35),
+    inset -2px 0 4px rgba(0, 0, 0, 0.3),
+    0 1px 2px rgba(0, 0, 0, 0.4);
+}
+
+.tv-screen {
+  position: relative;
+  flex: 1;
+  min-width: 0;
+  border-radius: 22px / 16px;
+  overflow: hidden;
+  background: radial-gradient(ellipse at 50% 30%, #0a1628 0%, #030308 70%);
+  /* Screen recessed into the silver bezel: dark inner wall + crisp edge */
+  border: 3px solid #0a0b0d;
+  box-shadow:
+    0 0 0 3px #2a2d31,
+    0 0 0 5px rgba(255, 255, 255, 0.35),
+    inset 0 0 70px rgba(0, 0, 0, 0.85),
+    inset 0 0 60px rgba(125, 249, 255, 0.05);
+}
+
+/* Curved-glass glare across the screen */
+.tv-glass {
+  pointer-events: none;
+  position: absolute;
+  inset: 0;
+  z-index: 4;
+  border-radius: inherit;
+  background: linear-gradient(
+    125deg,
+    rgba(255, 255, 255, 0.1) 0%,
+    rgba(255, 255, 255, 0.04) 14%,
+    transparent 34%,
+    transparent 100%
+  );
+  box-shadow: inset 0 0 50px rgba(0, 0, 0, 0.45);
+}
+
+/* Right-hand silver control panel: two chrome dials over a speaker grille */
+.tv-controls {
+  flex: 0 0 78px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  padding: 14px 8px;
+  border-radius: 8px;
+  background-color: #c2c5c9;
+  background-image: var(--brushed-silver);
+  border: 1px solid #6f7378;
+  box-shadow:
+    inset 0 2px 2px rgba(255, 255, 255, 0.85),
+    inset 0 -3px 4px rgba(0, 0, 0, 0.35),
+    0 1px 2px rgba(0, 0, 0, 0.4);
+}
+
+.tv-dials {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+}
+
+.tv-dial {
+  position: relative;
+  width: 50px;
+  height: 50px;
+  border-radius: 50%;
+  /* Chrome rotary dial ring */
   background: radial-gradient(
-    ellipse at 50% 30%,
-    #0a1628 0%,
-    #030308 70%
+    circle at 50% 38%,
+    #f4f5f6 0%,
+    #d2d5d9 32%,
+    #9a9ea3 66%,
+    #6f7378 100%
   );
   box-shadow:
-    inset 0 0 60px rgba(125, 249, 255, 0.05),
-    0 0 30px rgba(125, 249, 255, 0.08);
+    0 2px 5px rgba(0, 0, 0, 0.55),
+    inset 0 1px 2px rgba(255, 255, 255, 0.95),
+    inset 0 -3px 5px rgba(0, 0, 0, 0.4);
+}
+
+/* Dark inner knob */
+.tv-dial::before {
+  content: "";
+  position: absolute;
+  inset: 10px;
+  border-radius: 50%;
+  background: radial-gradient(circle at 40% 35%, #51545a 0%, #1b1d20 78%);
+  box-shadow:
+    inset 0 1px 1px rgba(255, 255, 255, 0.25),
+    0 1px 2px rgba(0, 0, 0, 0.6);
+}
+
+/* Pointer notch */
+.tv-dial::after {
+  content: "";
+  position: absolute;
+  top: 12px;
+  left: 50%;
+  width: 2px;
+  height: 9px;
+  border-radius: 1px;
+  background: #eef0f2;
+  transform: translateX(-50%);
+  z-index: 1;
+}
+
+.tv-dial--tune::after {
+  transform: translateX(-50%) rotate(48deg);
+  transform-origin: 50% 13px;
+}
+
+.tv-grille {
+  width: 100%;
+  flex: 1;
+  min-height: 0;
+  border-radius: 3px;
+  /* Vertical speaker slats */
+  background-image: repeating-linear-gradient(
+    90deg,
+    rgba(0, 0, 0, 0.5) 0px,
+    rgba(0, 0, 0, 0.5) 2px,
+    rgba(255, 255, 255, 0.28) 2px,
+    rgba(255, 255, 255, 0.28) 4px
+  );
+  box-shadow:
+    inset 0 0 4px rgba(0, 0, 0, 0.55),
+    inset 0 1px 0 rgba(255, 255, 255, 0.3);
 }
 
 .model-loading {
@@ -208,6 +377,7 @@ body {
   pointer-events: none;
   position: absolute;
   inset: 0;
+  z-index: 6;
   background: rgba(125, 249, 255, 0.35);
   mix-blend-mode: screen;
   opacity: 0;
@@ -416,6 +586,165 @@ body {
 
 .cube-debug__log:hover {
   background: #a8fcff;
+}
+
+/* Lighting tuning panel — hover the lower-right of the stage */
+.lighting-debug {
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  z-index: 10;
+  width: 9rem;
+  height: 2.75rem;
+}
+
+.lighting-debug__panel {
+  position: absolute;
+  right: 0.5rem;
+  bottom: 0.5rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+  width: 16rem;
+  padding: 0.45rem 0.5rem;
+  border: 1px solid transparent;
+  border-radius: 3px;
+  background: transparent;
+  opacity: 0;
+  pointer-events: none;
+  transition:
+    opacity 0.2s ease,
+    background 0.2s ease,
+    border-color 0.2s ease;
+}
+
+.lighting-debug:hover .lighting-debug__panel,
+.lighting-debug:focus-within .lighting-debug__panel {
+  opacity: 1;
+  pointer-events: auto;
+  background: rgba(8, 12, 24, 0.94);
+  border-color: var(--border);
+  box-shadow: 0 0 16px rgba(125, 249, 255, 0.12);
+}
+
+.lighting-debug__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+}
+
+.lighting-debug__hint {
+  font-family: var(--font-mono);
+  font-size: 0.58rem;
+  letter-spacing: 0.14em;
+  color: rgba(125, 249, 255, 0.35);
+  transition: color 0.2s ease;
+}
+
+.lighting-debug:hover .lighting-debug__hint,
+.lighting-debug:focus-within .lighting-debug__hint {
+  color: var(--cyan);
+}
+
+.lighting-debug__actions {
+  display: flex;
+  gap: 0.3rem;
+}
+
+.lighting-debug__actions button {
+  padding: 0.2rem 0.4rem;
+  font-family: var(--font-mono);
+  font-size: 0.55rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  color: #000;
+  background: var(--cyan);
+  border: none;
+  border-radius: 2px;
+  cursor: pointer;
+}
+
+.lighting-debug__actions button:hover {
+  background: #a8fcff;
+}
+
+.lighting-debug__fields {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  max-height: min(58vh, 22rem);
+  overflow-y: auto;
+  padding-right: 0.25rem;
+  scrollbar-width: thin;
+  scrollbar-color: var(--border) transparent;
+}
+
+.lighting-debug__group {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  padding-bottom: 0.35rem;
+  border-bottom: 1px solid rgba(125, 249, 255, 0.12);
+}
+
+.lighting-debug__title {
+  font-family: var(--font-mono);
+  font-size: 0.56rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--cyan);
+}
+
+.lighting-debug__row {
+  display: flex;
+  flex-direction: column;
+  gap: 0.12rem;
+}
+
+.lighting-debug__rowtop {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.5rem;
+}
+
+.lighting-debug__name {
+  font-family: var(--font-mono);
+  font-size: 0.54rem;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.lighting-debug__val {
+  font-family: var(--font-mono);
+  font-size: 0.54rem;
+  color: var(--text);
+}
+
+.lighting-debug__row input[type="range"] {
+  width: 100%;
+  height: 0.9rem;
+  accent-color: var(--cyan);
+  cursor: pointer;
+}
+
+.lighting-debug__row--color {
+  flex-direction: row;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.lighting-debug__row--color input[type="color"] {
+  width: 2.2rem;
+  height: 1.1rem;
+  padding: 0;
+  background: transparent;
+  border: 1px solid var(--border);
+  border-radius: 2px;
+  cursor: pointer;
 }
 
 .chat-panel {
@@ -787,6 +1116,16 @@ body {
 @media (max-width: 600px) {
   .app {
     padding: 0.5rem;
+  }
+
+  .stage {
+    gap: 0;
+    padding: 10px;
+    border-radius: 12px;
+  }
+
+  .tv-controls {
+    display: none;
   }
 
   .chat-panel {

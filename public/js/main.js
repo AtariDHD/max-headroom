@@ -3,6 +3,7 @@ import { MaxVoice } from "./max-voice.js";
 import { MaxEffects } from "./max-effects.js";
 import { MaxSpeechInput } from "./max-speech-input.js";
 import { initCubeDebug } from "./cube-debug.js";
+import { initLightingDebug } from "./lighting-debug.js";
 import { appendMessage, appendMaxMessage, MaxMessageHighlighter } from "./max-chat.js";
 import { initSpeechDebug } from "./speech-debug.js";
 
@@ -20,6 +21,7 @@ const movementPlayBtn = document.getElementById("movement-play-btn");
 
 const scene = new MaxScene(canvas);
 initCubeDebug(scene);
+initLightingDebug(scene);
 const effects = new MaxEffects({ stage, flash, scene });
 const highlighter = new MaxMessageHighlighter();
 let activeMessageBody = null;
@@ -40,6 +42,7 @@ const voice = new MaxVoice({
   onStutterStart: (wordIndex) => highlighter.holdWord(wordIndex),
   onStutterEnd: () => highlighter.releaseHold(),
   onGlitch: () => effects.pulseGlitch(0.8 + Math.random() * 0.4),
+  onSentence: () => scene.head.nextSpeakingPose(),
   onSpeakStart: ({ rawText, alignment, durationMs }) => {
     speechDebug?.onSpeakStart?.({ rawText, alignment, durationMs });
     if (activeMessageBody) {
@@ -47,7 +50,10 @@ const voice = new MaxVoice({
     }
   },
   onSpeakProgress: (atSec) => highlighter.update(atSec),
-  onSpeakStop: () => highlighter.stop(),
+  onSpeakStop: () => {
+    highlighter.stop();
+    scene.setSpeaking(false);
+  },
 });
 
 const history = [];

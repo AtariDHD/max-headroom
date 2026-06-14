@@ -104,43 +104,47 @@ export class MaxScene {
     this.camera.position.set(0, 1.0, 0.75);
 
     const hemi = new THREE.HemisphereLight(0xd0d8ec, 0x383848, 1.06);
-    this.scene.add(hemi);
-
     const ambient = new THREE.AmbientLight(0x687080, 0.82);
-    this.scene.add(ambient);
 
     const faceFillL = new THREE.DirectionalLight(0xfff4ee, 0.62);
     faceFillL.position.set(-1.0, 0.45, 1.6);
-    this.scene.add(faceFillL);
 
     const faceFillR = new THREE.DirectionalLight(0xfff4ee, 0.62);
     faceFillR.position.set(1.0, 0.45, 1.6);
-    this.scene.add(faceFillR);
 
     // Weak right-front accent
     const rightFront = new THREE.DirectionalLight(0xfff6f2, 1.88);
     rightFront.position.set(1.5, 0.35, 1.25);
-    this.scene.add(rightFront);
 
     const faceKey = new THREE.DirectionalLight(0xfff8f0, 0.86);
     faceKey.position.set(0, 0.35, 1.9);
-    this.scene.add(faceKey);
 
     const bodyFill = new THREE.DirectionalLight(0xffffff, 0.46);
     bodyFill.position.set(0, 0.1, 1.5);
-    this.scene.add(bodyFill);
 
     const key = new THREE.DirectionalLight(0xffffff, 0.22);
     key.position.set(0, 2.8, 0.5);
-    this.scene.add(key);
 
     const cyanRim = new THREE.DirectionalLight(0x7df9ff, 0.19);
     cyanRim.position.set(-2.5, 1.0, -1.8);
-    this.scene.add(cyanRim);
 
     const magentaFill = new THREE.DirectionalLight(0xff2bd6, 0.07);
     magentaFill.position.set(1, -0.5, -2);
-    this.scene.add(magentaFill);
+
+    // Keyed references so the lighting debug panel can tune them live.
+    this.lights = {
+      hemi,
+      ambient,
+      faceFillL,
+      faceFillR,
+      rightFront,
+      faceKey,
+      bodyFill,
+      key,
+      cyanRim,
+      magentaFill,
+    };
+    for (const light of Object.values(this.lights)) this.scene.add(light);
 
     this.scene.add(this.head.group);
     this._showLoading();
@@ -316,10 +320,40 @@ export class MaxScene {
 
   setSpeaking(value) {
     this.speaking = value;
+    this.head.setSpeaking(value);
   }
 
   setMouthLevel(mouth) {
     this.head.setMouthOpen(mouth);
+  }
+
+  /** Snapshot of every tunable lighting value (for the debug panel + logging). */
+  getLightingConfig() {
+    const hex = (c) => "#" + c.getHexString();
+    const lights = {};
+    for (const [key, light] of Object.entries(this.lights ?? {})) {
+      const entry = {
+        intensity: +light.intensity.toFixed(3),
+        color: hex(light.color),
+      };
+      if (light.isHemisphereLight) {
+        entry.ground = hex(light.groundColor);
+      }
+      if (light.isDirectionalLight) {
+        entry.x = +light.position.x.toFixed(2);
+        entry.y = +light.position.y.toFixed(2);
+        entry.z = +light.position.z.toFixed(2);
+      }
+      lights[key] = entry;
+    }
+    return {
+      lights,
+      exposure: +this.renderer.toneMappingExposure.toFixed(3),
+      bloomStrength: +this.bloomPass.strength.toFixed(3),
+      bloomRadius: +this.bloomPass.radius.toFixed(3),
+      bloomThreshold: +this.bloomPass.threshold.toFixed(3),
+      fog: this.scene.fog ? +this.scene.fog.density.toFixed(4) : 0,
+    };
   }
 
   /** @returns {typeof MOVEMENTS} */
